@@ -2,11 +2,13 @@ package com.streamforge.client;
 
 import com.streamforge.network.FrameReader;
 import com.streamforge.network.FrameWriter;
+import com.streamforge.protocol.Decoder;
+import com.streamforge.protocol.Encoder;
+import com.streamforge.protocol.RequestType;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
 
 public class TestClient {
     public static void main(String[] args) throws Exception {
@@ -18,15 +20,31 @@ public class TestClient {
             FrameReader frameReader = new FrameReader(input);
             FrameWriter frameWriter = new FrameWriter(output);
 
-            String message = "hello-streamforge";
+            byte[] pingRequest = buildPingRequest();
 
-            frameWriter.writeFrame(message.getBytes(StandardCharsets.UTF_8));
+            frameWriter.writeFrame(pingRequest);
 
             byte[] responsePayload = frameReader.readFrame();
 
-            String response = new String(responsePayload, StandardCharsets.UTF_8);
+            Decoder decoder = new Decoder(responsePayload);
 
-            System.out.println("Broker response: " + response);
+            int correlationId = decoder.readInt32();
+            short statusCode = decoder.readInt16();
+            String message = decoder.readString();
+
+            System.out.println("Correlation ID: " + correlationId);
+            System.out.println("Status Code: " + statusCode);
+            System.out.println("Message: " + message);
         }
+    }
+
+    private static byte[] buildPingRequest() {
+        Encoder encoder = new Encoder();
+
+        encoder.writeInt16(RequestType.PING.code());
+        encoder.writeInt32(1001);
+        encoder.writeString("test-client");
+
+        return encoder.toByteArray();
     }
 }
